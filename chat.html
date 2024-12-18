@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>I just want a C in this class</title>
+		<style>
+			body {
+				margin: 0;
+				font-family: Arial, sans-serif;
+				background: linear-gradient(45deg, #6a11cb, #2575fc);
+				background-size: 400% 400%;
+				animation: gradient 15s ease infinite;
+				color: white;
+			}
+
+			@keyframes gradient {
+				0% {
+					background-position: 0% 50%;
+				}
+				50% {
+					background-position: 100% 50%;
+				}
+				100% {
+					background-position: 0% 50%;
+				}
+			}
+
+			.container {
+				max-width: 600px;
+				margin: 50px auto;
+				padding: 20px;
+				border-radius: 10px;
+				background-color: rgba(0, 0, 0, 0.7);
+				box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+			}
+
+			#messages {
+				height: 400px;
+				overflow-y: auto;
+				margin-bottom: 20px;
+				padding: 10px;
+				border: 1px solid #ccc;
+				border-radius: 5px;
+				background-color: rgba(255, 255, 255, 0.1);
+			}
+
+			.message {
+				margin: 10px 0;
+				padding: 10px;
+				border-radius: 5px;
+			}
+
+			.incoming {
+				background-color: rgba(255, 255, 255, 0.2);
+			}
+
+			.outgoing {
+				background-color: rgba(0, 123, 255, 0.3);
+				text-align: right;
+			}
+
+			input {
+				width: calc(100% - 22px);
+				padding: 10px;
+				border-radius: 5px;
+				border: none;
+				outline: none;
+				font-size: 16px;
+			}
+
+			#online-users {
+				margin-top: 20px;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div id="messages"></div>
+			<input id="input" type="text" placeholder="enter smthng" />
+			<div id="online-users">Online users:</div>
+		</div>
+		<script>
+			const ws = new WebSocket('ws://localhost:7777/websocket')
+			const messagesDiv = document.getElementById('messages')
+			const input = document.getElementById('input')
+			const onlineUsersDiv = document.getElementById('online-users')
+
+			let currentUserUUID
+
+			function displayMessage(uuid, text, type) {
+				const message = document.createElement('div')
+				message.classList.add('message', type)
+
+				const uuidDiv = document.createElement('div')
+				uuidDiv.textContent = uuid
+				const textDiv = document.createElement('div')
+				textDiv.textContent = `${text}`
+
+				message.appendChild(uuidDiv)
+				message.appendChild(textDiv)
+				messagesDiv.appendChild(message)
+				messagesDiv.scrollTop = messagesDiv.scrollHeight
+			}
+
+			ws.onmessage = function (event) {
+				const messageData = JSON.parse(event.data)
+
+				if (messageData.type === 'online_clients') {
+					onlineUsersDiv.innerHTML = 'Online users: ' + messageData.text.replace('Online users: ', '')
+				} else if (messageData.type === 'incoming') {
+					let messageFull = JSON.parse(messageData.text)
+					if (messageFull.uuid !== currentUserUUID) {
+						displayMessage(messageData.uuid, messageFull.text, 'incoming')
+					}
+				}
+			}
+
+			input.addEventListener('keypress', function (event) {
+				if (event.key === 'Enter' && input.value.trim() !== '') {
+					currentUserUUID = generateUUID()
+					const messageToSend = { uuid: currentUserUUID, text: input.value.trim(), type: 'outgoing' }
+
+					ws.send(JSON.stringify(messageToSend))
+					displayMessage(messageToSend.uuid, messageToSend.text, 'outgoing')
+
+					input.value = ''
+				}
+			})
+
+			function generateUUID() {
+				return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+					const r = (Math.random() * 16) | 0,
+						v = c === 'x' ? r : (r & 0x3) | 0x8
+					return v.toString(16)
+				})
+			}
+		</script>
+	</body>
+</html>
